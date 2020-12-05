@@ -93,8 +93,11 @@ MRuby::GemBox.new do |conf|
   # WvD ADDITION: Use sleep module
   conf.gem :github => 'matsumotory/mruby-sleep'
   
+  # WvD ADDITION: Use the Onigmo regex module
+  conf.gem :mgem => 'mruby-onig-regexp'
+  
   # WvD ADDITION: Use marshal module
-  conf.gem :github => "WaveformDelta/mruby-marshal", :branch => "master"
+  conf.gem :mgem => 'mruby-marshal'
  
 end
 __EOF__
@@ -131,8 +134,11 @@ MRuby::Build.new do |conf|
   # WvD ADDITION: Use sleep module
   conf.gem :github => 'matsumotory/mruby-sleep'
   
+  # WvD ADDITION: use the Onigmo regex module
+  conf.gem :mgem => 'mruby-onig-regexp'
+
   # WvD ADDITION: Use marshal module
-  conf.gem :github => "WaveformDelta/mruby-marshal", :branch => "master"
+  conf.gem :mgem => 'mruby-marshal'
 end
 
 SIM_SYSROOT="#{SIMSDKPATH}"
