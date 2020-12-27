@@ -144,29 +144,6 @@ end
 SIM_SYSROOT="#{SIMSDKPATH}"
 DEVICE_SYSROOT="#{IOSSDKPATH}"
 
-MRuby::CrossBuild.new('i386-apple-darwin') do |conf|
-  conf.bins = []
-
-  conf.gembox 'custom'
-
-  conf.cc do |cc|
-    cc.command = 'xcrun'
-    cc.defines = %w(MRB_INTEGER_DIVISION)
-    cc.flags = %W(-sdk iphoneos clang -miphoneos-version-min=8.0 -arch i386 -isysroot \#{SIM_SYSROOT} -g -O3 -Wall -fexceptions -fembed-bitcode -Werror-implicit-function-declaration)
-  end
-
-  conf.cxx do |cxx|
-    cxx.command = 'xcrun'
-    cxx.defines = %w(MRB_INTEGER_DIVISION)
-    cxx.flags = %W(-sdk iphoneos clang -x c++ -miphoneos-version-min=8.0 -arch i386 -isysroot \#{SIM_SYSROOT} -g -O3 -Wall -fembed-bitcode -Werror-implicit-function-declaration)
-  end
-
-  conf.linker do |linker|
-    linker.command = 'xcrun'
-    linker.flags = %W(-sdk iphoneos clang -x c++ -miphoneos-version-min=8.0 -arch i386 -isysroot \#{SIM_SYSROOT})
-  end
-end
-
 MRuby::CrossBuild.new('x86_64-apple-darwin') do |conf|
   conf.bins = []
 
@@ -175,64 +152,18 @@ MRuby::CrossBuild.new('x86_64-apple-darwin') do |conf|
   conf.cc do |cc|
     cc.command = 'xcrun'
     cc.defines = %w(MRB_INTEGER_DIVISION)
-    cc.flags = %W(-sdk iphoneos clang -miphoneos-version-min=8.0 -arch x86_64 -isysroot \#{SIM_SYSROOT} -g -O3 -Wall -fexceptions -fembed-bitcode -Werror-implicit-function-declaration)
+    cc.flags = %W(-sdk iphoneos clang -miphoneos-version-min=11.0 -arch x86_64 -isysroot \#{SIM_SYSROOT} -g -O3 -Wall -fexceptions -fembed-bitcode -Werror-implicit-function-declaration)
   end
 
   conf.cxx do |cxx|
     cxx.command = 'xcrun'
     cxx.defines = %w(MRB_INTEGER_DIVISION)
-    cxx.flags = %W(-sdk iphoneos clang -x c++ -miphoneos-version-min=8.0 -arch x86_64 -isysroot \#{SIM_SYSROOT} -g -O3 -Wall -fembed-bitcode -Werror-implicit-function-declaration)
+    cxx.flags = %W(-sdk iphoneos clang -x c++ -miphoneos-version-min=11.0 -arch x86_64 -isysroot \#{SIM_SYSROOT} -g -O3 -Wall -fembed-bitcode -Werror-implicit-function-declaration)
   end
 
   conf.linker do |linker|
     linker.command = 'xcrun'
-    linker.flags = %W(-sdk iphoneos clang -x c++ -miphoneos-version-min=8.0 -arch x86_64 -isysroot \#{SIM_SYSROOT})
-  end
-end
-
-MRuby::CrossBuild.new('armv7-apple-darwin') do |conf|
-  conf.bins = []
-
-  conf.gembox 'custom'
-
-  conf.cc do |cc|
-    cc.command = 'xcrun'
-    cc.defines = %w(MRB_INTEGER_DIVISION)
-    cc.flags = %W(-sdk iphoneos clang -arch armv7 -isysroot \#{DEVICE_SYSROOT} -g -O3 -Wall -fexceptions -fembed-bitcode -Werror-implicit-function-declaration)
-  end
-
-  conf.cxx do |cxx|
-    cxx.command = 'xcrun'
-    cxx.defines = %w(MRB_INTEGER_DIVISION)
-    cxx.flags = %W(-sdk iphoneos clang -x c++ -arch armv7 -isysroot \#{DEVICE_SYSROOT} -g -O3 -Wall -fembed-bitcode -Werror-implicit-function-declaration)
-  end
-
-  conf.linker do |linker|
-    linker.command = 'xcrun'
-    linker.flags = %W(-sdk iphoneos clang -x c++ -arch armv7 -isysroot \#{DEVICE_SYSROOT})
-  end
-end
-
-MRuby::CrossBuild.new('armv7s-apple-darwin') do |conf|
-  conf.bins = []
-
-  conf.gembox 'custom'
-
-  conf.cc do |cc|
-    cc.command = 'xcrun'
-    cc.defines = %w(MRB_INTEGER_DIVISION)
-    cc.flags = %W(-sdk iphoneos clang -arch armv7s -isysroot \#{DEVICE_SYSROOT} -g -O3 -Wall -fexceptions -fembed-bitcode -Werror-implicit-function-declaration)
-  end
-
-  conf.cxx do |cxx|
-    cxx.command = 'xcrun'
-    cxx.defines = %w(MRB_INTEGER_DIVISION)
-    cxx.flags = %W(-sdk iphoneos clang -x c++ -arch armv7s -isysroot \#{DEVICE_SYSROOT} -g -O3 -Wall -fembed-bitcode -Werror-implicit-function-declaration)
-  end
-
-  conf.linker do |linker|
-    linker.command = 'xcrun'
-    linker.flags = %W(-sdk iphoneos clang -x c++ -arch armv7s -isysroot \#{DEVICE_SYSROOT})
+    linker.flags = %W(-sdk iphoneos clang -x c++ -miphoneos-version-min=11.0 -arch x86_64 -isysroot \#{SIM_SYSROOT})
   end
 end
 
@@ -326,12 +257,10 @@ file "bin/mruby" => [:build_mruby, "bin"] do
 end
 
 file "MRuby.framework/Versions/Current/MRuby" => [:build_mruby, "MRuby.framework/Versions/1.0.0/"] do
-  sh "#{XCODEROOT}/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo -arch i386 mruby/build/i386-apple-darwin/lib/libmruby.a"\
+  sh "#{XCODEROOT}/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo"\
   " -arch x86_64 mruby/build/x86_64-apple-darwin/lib/libmruby.a"\
   " -arch arm64e mruby/build/arm-apple-darwin/lib/libmruby.a"\
   " -arch arm64 mruby/build/aarch64-apple-darwin/lib/libmruby.a"\
-  " -arch armv7 mruby/build/armv7-apple-darwin/lib/libmruby.a"\
-  " -arch armv7s mruby/build/armv7s-apple-darwin/lib/libmruby.a"\
   " -create -output MRuby.framework/Versions/Current/MRuby"
 end
 
