@@ -85,7 +85,7 @@ MRuby::GemBox.new do |conf|
   conf.gem :mgem => "mruby-errno"
   
   # WvD ADDITION: Use IO module
-  conf.gem :mgem => "mruby-io"
+  conf.gem :github => 'iij/mruby-io'
   
   # WvD ADDITION: Use pack module
   conf.gem :github => 'iij/mruby-pack'
@@ -126,7 +126,7 @@ MRuby::Build.new do |conf|
   conf.gem :mgem => "mruby-errno"
   
   # WvD ADDITION: Use IO module
-  conf.gem :mgem => "mruby-io"
+  conf.gem :github => 'iij/mruby-io'
   
   # WvD ADDITION: Use pack module
   conf.gem :github => 'iij/mruby-pack'
