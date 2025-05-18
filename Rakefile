@@ -1,13 +1,39 @@
+#====================================================================
+# BUILDING mRuby FOR APPLE DEVICES
+#
+# This Rakefile can be run to build an mRuby instance for both iOS
+# devices (iPhone and iPad) and Mac machines. It will build:
+#
+#	- MRuby.framework, a framework that can be included in iOS projects
+#	- The mRuby bin tools, used to develop and test code for the MRuby.framework
+#
+# To build, use:
+#	rake
+#
+# To clean the folder, use:
+#	rake clean
+#====================================================================
+
+# Get the paths to the Xcode iOS SDKs
 XCODEROOT = %x[xcode-select -print-path].strip
 SIMSDKPATH = Dir["#{XCODEROOT}/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator*.sdk/"].sort.last
 IOSSDKPATH = Dir["#{XCODEROOT}/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk/"].sort.last
 
+# Verify we have paths to the SDKs
 task :verify_sysroot => [SIMSDKPATH, IOSSDKPATH]
 
+# Create the 'custom.gembox' and 'ios_build_config.rb' files.
 file "ios_build_config.rb" do
 
+  # Create a custom.gembox to configure the iOS device builds.
+  # Note that this creates a separate file.
   open('custom.gembox', 'w') do |gembox_file|
     gembox_file.puts <<__EOF__
+# This is a configuration for an mRuby to run on iOS devices, including
+# several standard Ruby components (by default, mRuby builds are 'minimal'; common
+# language features are added with 'gems').
+#
+# See https://github.com/WaveformDelta/mruby/blob/master/doc/guides/mrbgems.md
 MRuby::GemBox.new do |conf|
   # Use standard Kernel#sprintf method
   conf.gem :core => "mruby-sprintf"
@@ -103,11 +129,21 @@ end
 __EOF__
   end
 
+  # Copy the 'custom.gembox' to the 'mrbgems folder'
   FileUtils.cp "custom.gembox", "mruby/mrbgems/"
 
+  # Create a Ruby script to build everything.
+  # Note that this creates a separate file.
   open('ios_build_config.rb', 'w') do |config_file|
 
     config_file.puts <<__EOF__
+# Build everything for the mRuby system.
+#
+# Build mRuby for the Mac, using the 'default' gembox with some additions. This will
+# automatically build binaries for the host machine architecture (Intel or Apple Silicon),
+# and build the mRuby toolchain binaries (mirb, mruby, & mrbc).
+#
+# See https://github.com/WaveformDelta/mruby/blob/master/doc/guides/compile.md
 MRuby::Build.new do |conf|
   toolchain :clang
 
@@ -141,9 +177,12 @@ MRuby::Build.new do |conf|
   conf.gem :mgem => 'mruby-marshal'
 end
 
+# Set paths to the SDKs
 SIM_SYSROOT="#{SIMSDKPATH}"
 DEVICE_SYSROOT="#{IOSSDKPATH}"
 
+# Cross build for the Intel iOS simulator. Note that the CrossBuild name is used by
+# the autoconf tools in some gems, and must be preserved. 
 MRuby::CrossBuild.new('x86_64-apple-darwin') do |conf|
   conf.bins = []
 
@@ -167,6 +206,9 @@ MRuby::CrossBuild.new('x86_64-apple-darwin') do |conf|
   end
 end
 
+# Cross build for older Apple iOS devices. Note that the CrossBuild name is used by
+# the autoconf tools in some gems, and must be preserved. (This can also be used by
+# simulators on Apple Silicon Macs.) 
 MRuby::CrossBuild.new('aarch64-apple-darwin') do |conf|
   conf.bins = []
 
@@ -190,6 +232,9 @@ MRuby::CrossBuild.new('aarch64-apple-darwin') do |conf|
   end
 end
 
+# Cross build for newer Apple iOS devices. Note that the CrossBuild name is used by
+# the autoconf tools in some gems, and must be preserved. (This can also be used by
+# simulators on Apple Silicon Macs.) 
 MRuby::CrossBuild.new('arm-apple-darwin') do |conf|
   conf.bins = []
 
@@ -218,11 +263,14 @@ __EOF__
 
 end
 
+# These next lines hand-build a Darwin framework for mRuby, creating and linking
+# together the required directory structure.
 directory "MRuby.framework/Versions"
 directory "MRuby.framework/Versions/1.0.0/"
 directory "MRuby.framework/Versions/1.0.0/Headers"
 directory "MRuby.framework/Versions/1.0.0/Resources"
 
+# Symlink the framework components together.
 task "MRuby.framework/Versions/1.0.0/" => "MRuby.framework/Versions" do
 
   Dir.chdir("MRuby.framework/Versions/") do
@@ -235,6 +283,7 @@ task "MRuby.framework/Versions/1.0.0/" => "MRuby.framework/Versions" do
   end
 end
 
+# Run the ios_build_config.rb script created above.
 task :build_mruby => "ios_build_config.rb" do
   Dir.chdir("mruby") do
     ENV['MRUBY_CONFIG'] = "../ios_build_config.rb"
@@ -242,6 +291,24 @@ task :build_mruby => "ios_build_config.rb" do
   end
 end
 
+# Use the 'lipo' command to create a 'fat binary' combining the cross builds of
+# libmruby.a for the different targets. This is what is included in the project for a
+# user of this framework, and is ultimately uploaded to the App Store. When distributed to
+# devices, the appropriate binary for the target device will be extracted and delivered.
+file "MRuby.framework/Versions/Current/MRuby" => [:build_mruby, "MRuby.framework/Versions/1.0.0/"] do
+  sh "#{XCODEROOT}/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo"\
+  " -arch x86_64 mruby/build/x86_64-apple-darwin/lib/libmruby.a"\
+  " -arch arm64e mruby/build/arm-apple-darwin/lib/libmruby.a"\
+  " -arch arm64 mruby/build/aarch64-apple-darwin/lib/libmruby.a"\
+  " -create -output MRuby.framework/Versions/Current/MRuby"
+end
+
+# Copy the headers into the framework
+task :mruby_headers => [:build_mruby, "MRuby.framework/Versions/1.0.0/Headers"] do
+  FileUtils.cp_r "mruby/include/.", "MRuby.framework/Versions/Current/Headers/"
+end
+ 
+# These next lines copy the mRuby binary tools to 'bin' at the top level.
 directory "bin"
 
 file "bin/mirb" => [:build_mruby, "bin"] do
@@ -256,22 +323,12 @@ file "bin/mruby" => [:build_mruby, "bin"] do
   FileUtils.cp "mruby/build/host/bin/mruby", "bin/mruby"
 end
 
-file "MRuby.framework/Versions/Current/MRuby" => [:build_mruby, "MRuby.framework/Versions/1.0.0/"] do
-  sh "#{XCODEROOT}/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo"\
-  " -arch x86_64 mruby/build/x86_64-apple-darwin/lib/libmruby.a"\
-  " -arch arm64e mruby/build/arm-apple-darwin/lib/libmruby.a"\
-  " -arch arm64 mruby/build/aarch64-apple-darwin/lib/libmruby.a"\
-  " -create -output MRuby.framework/Versions/Current/MRuby"
-end
-
-task :mruby_headers => [:build_mruby, "MRuby.framework/Versions/1.0.0/Headers"] do
-  FileUtils.cp_r "mruby/include/.", "MRuby.framework/Versions/Current/Headers/"
-end
- 
+# Build everything
 task :all => [:verify_sysroot, "bin/mirb", "bin/mrbc", "bin/mruby", "MRuby.framework/Versions/Current/MRuby", :mruby_headers]
 
 task :default => :all
 
+# Use the ios_build_config.rb script to clean everything
 task :clean => "ios_build_config.rb" do
   Dir.chdir("mruby") do
     ENV['MRUBY_CONFIG'] = "../ios_build_config.rb"
